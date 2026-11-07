@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IDECO · Bộ tạo app PWA</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f5f3f0;color:#272b36;font:16px/1.55 system-ui,sans-serif}main{max-width:790px;margin:auto;padding:28px 16px 56px}header{background:#292c38;color:#fff;padding:30px;border-radius:20px}header small{letter-spacing:.18em;color:#efbd9d}h1{margin:8px 0;font-size:clamp(26px,5vw,38px);line-height:1.15}header p{margin:12px 0 0;color:#e0dfe4}section{padding:24px;margin-top:16px;background:#fff;border:1px solid #e8e1dc;border-radius:16px}h2{font-size:19px;margin:0 0 12px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}label{display:block;font-weight:650;margin-bottom:5px}input{font:inherit;width:100%;max-width:100%;padding:11px;border:1px solid #dcd6d2;border-radius:9px;background:#fcfbfa}input[type=file]{font-size:13px}input::file-selector-button{padding:6px;margin-right:7px}small,.hint{font-size:13px;color:#655e66}.hint{margin:6px 0 0}.name-row{margin-top:16px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}button{min-height:44px;border:1px solid #dcd6d2;border-radius:10px;background:#fff;color:#302b35;font:inherit;font-weight:650;padding:9px 15px;cursor:pointer}button.primary{color:white;background:#a9233e;border-color:#a9233e}button:disabled{opacity:.6;cursor:wait}button:focus-visible,input:focus-visible{outline:3px solid #a9233e;outline-offset:3px}#status{min-height:24px;margin:14px 0 0;color:#27634c;overflow-wrap:anywhere}#status.error{color:#a9233e}ol{padding-left:23px;margin:0}li+li{margin-top:7px}@media(max-width:540px){.fields{grid-template-columns:1fr}header,section{padding:19px}}
+</style>
+</head>
+<body>
+<main>
+<header><small>IDECO · CÔNG CỤ NỘI BỘ</small><h1>Bộ tạo app PWA</h1><p>Chọn HTML và logo để đóng gói ứng dụng cài lên màn hình Android và iPhone.</p></header>
+<section aria-labelledby="files-title">
+<h2 id="files-title">Tệp ứng dụng</h2>
+<form id="builder">
+<div class="fields">
+<div><label for="source">1. File HTML chính</label><input type="file" id="source" accept=".html,.htm,text/html"><p class="hint">File này sẽ trở thành index.html trong bộ cài.</p></div>
+<div><label for="logo">2. Ảnh logo</label><input type="file" id="logo" accept="image/png,image/jpeg,image/webp"><p class="hint">PNG, JPG hoặc WebP. Nên chọn ảnh vuông từ 512 × 512 px.</p></div>
+</div>
+<div class="name-row"><label for="name">Tên trên màn hình chính (tùy chọn)</label><input id="name" maxlength="60" placeholder="Mặc định lấy tiêu đề trong file HTML"></div>
+<div class="actions"><button id="build" type="submit" class="primary">Tạo và tải ZIP</button><button id="sample" type="button">Tải app mẫu</button></div>
+<p id="status" role="status" aria-live="polite"></p>
+</form>
+</section>
+<section><h2>Đưa app lên điện thoại</h2><ol>
+<li>Giải nén ZIP. Tải toàn bộ nội dung lên cùng một thư mục GitHub Pages có HTTPS.</li>
+<li>Nếu HTML dùng CSS, JavaScript hoặc ảnh rời, tải thêm các tệp đó và giữ đúng đường dẫn của app gốc.</li>
+<li>Mở địa chỉ website trên điện thoại. Android dùng menu Chrome để cài. iPhone dùng Safari → Chia sẻ → Thêm vào màn hình chính.</li>
+</ol><p class="hint">Mỗi app nên có địa chỉ riêng. Bộ tạo xử lý tệp trên máy của anh. Nếu nguồn đã là PWA, dùng bản HTML gốc trước khi gắn cấu hình PWA để tránh hai bộ cài cùng đăng ký.</p></section>
+</main>
+<script>
+'use strict';
+const encoder = new TextEncoder();
+const ASSET_DIR = 'ideco-pwa/';
+const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
+const byId = id => document.getElementById(id);
+const escapeHtml = text => text.replace(/[&<>"']/g, char => ({
+  '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+})[char]);
+
+function prepareApp(source, requestedName) {
+  const doc = new DOMParser().parseFromString(source, 'text/html');
+  if (doc.querySelector('link[rel~="manifest" i]')) {
+    throw new Error('File đã có manifest PWA. Hãy chọn file HTML gốc trước khi gắn PWA.');
+  }
+  if (doc.querySelector('base[href]')) {
+    throw new Error('File đang đặt thẻ <base href>. Hãy bỏ thẻ này và kiểm tra các đường dẫn của app trước khi đóng gói.');
+  }
+  const appName = (requestedName.trim() || doc.title.trim() || 'Ứng dụng IDECO').slice(0, 60);
+  // Keep the original document and scripts intact by adding only PWA metadata.
+  if (!doc.querySelector('meta[name="viewport" i]')) {
+    doc.head.insertAdjacentHTML('afterbegin', '<meta name="viewport" content="width=device-width, initial-scale=1">');
+  }
+  doc.head.querySelectorAll('link[rel~="apple-touch-icon" i], link[rel~="apple-touch-icon-precomposed" i], link[rel~="icon" i], meta[name="apple-mobile-web-app-title" i], meta[name="apple-mobile-web-app-capable" i], meta[name="mobile-web-app-capable" i]').forEach(node => node.remove());
+  const title = escapeHtml(appName);
+  doc.head.insertAdjacentHTML('beforeend', `
+    <link rel="manifest" href="./${ASSET_DIR}manifest.json">
+    <link rel="icon" href="./${ASSET_DIR}icon-192.png" type="image/png">
+    <link rel="apple-touch-icon" sizes="180x180" href="./${ASSET_DIR}apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="${title}">
+    <script src="./${ASSET_DIR}register.js" defer><\/script>
+  `);
+  const doctype = doc.doctype ? new XMLSerializer().serializeToString(doc.doctype) + '\n' : '';
+  return { appName, html: doctype + doc.documentElement.outerHTML };
+}
+
+async function renderIcon(image, size, maskable) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+  const box = size * (maskable ? 0.68 : 1);
+  const scale = box / Math.max(image.naturalWidth, image.naturalHeight);
+  const width = image.naturalWidth * scale;
+  const height = image.naturalHeight * scale;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(image, (size - width) / 2, (size - height) / 2, width, height);
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) throw new Error('Không thể tạo ảnh biểu tượng.');
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+async function buildIcons(logo) {
+  const url = URL.createObjectURL(logo);
+  try {
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    const variants = [
+      ['icon-192.png',192,false], ['icon-512.png',512,false],
+      ['icon-maskable-512.png',512,true], ['apple-touch-icon.png',180,false]
+    ];
+    return await Promise.all(variants.map(async ([name,size,maskable]) =>
+      [ASSET_DIR + name, await renderIcon(image,size,maskable)]));
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function packageFiles(app) {
+  const manifest = {
+    name:app.appName, short_name:app.appName,
+    lang:'vi', start_url:'../', scope:'../', display:'standalone',
+    background_color:'#ffffff', theme_color:'#a9233e',
+    icons:[
+      {src:'icon-192.png', sizes:'192x192', type:'image/png', purpose:'any'},
+      {src:'icon-512.png', sizes:'512x512', type:'image/png', purpose:'any'},
+      {src:'icon-maskable-512.png', sizes:'512x512', type:'image/png', purpose:'maskable'}
+    ]
+  };
+  const register = `if ('serviceWorker' in navigator && window.isSecureContext) {
+  const worker = new URL('../sw.js', document.currentScript.src);
+  navigator.serviceWorker.register(worker).catch(error => console.warn('PWA:', error.message));
+}
+`;
+  const worker = `const scope = self.registration.scope;
+const cacheName = 'ideco-template-pwa:' + scope;
+const offlineUrl = new URL('ideco-pwa/offline.html', scope).href;
+self.addEventListener('install', event => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(cacheName);
+    try { await cache.add(offlineUrl); } catch {}
+    await self.skipWaiting();
+  })());
+});
+self.addEventListener('activate', event => {
+  event.waitUntil(self.clients.claim());
+});
+self.addEventListener('fetch', event => {
+  const request = event.request;
+  if (request.method !== 'GET' || request.mode !== 'navigate' || !request.url.startsWith(scope)) return;
+  event.respondWith(fetch(request).catch(async () =>
+    (await caches.open(cacheName)).match(offlineUrl).then(response =>
+      response || new Response('Vui lòng kết nối Internet rồi mở lại.', {
+        status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+      })
+    )
+  ));
+});
+`;
+  const offline = '<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Chưa có kết nối</title><main><h1>Chưa có kết nối</h1><p>Hãy bật Internet rồi mở lại ứng dụng.</p></main></html>';
+  const readme = `${app.appName} — PWA Android và iPhone
+
+1. Giải nén và tải toàn bộ file, thư mục lên cùng vị trí GitHub Pages (HTTPS).
+2. Nếu HTML có CSS, JavaScript hoặc ảnh rời, đưa lên thêm đúng cấu trúc gốc.
+3. Android: Chrome > menu ⋮ > Cài đặt ứng dụng hoặc Thêm vào màn hình chính.
+4. iPhone: Safari > Chia sẻ > Thêm vào màn hình chính > Thêm.
+5. Nếu cập nhật app, triển khai vào đúng địa chỉ cũ. Khi biểu tượng cũ còn hiện,
+   thử mở lại trang và cài lại nếu cần. Kiểm tra dữ liệu chỉ lưu trên máy trước khi gỡ.
+Mỗi app dùng thư mục hoặc repo riêng. Nội dung chính được mở trực tiếp từ index.html.
+Bộ cài hiển thị màn hình báo mất mạng. Khả năng sử dụng offline phụ thuộc app gốc.
+`;
+  return [
+    ['index.html',app.html], [ASSET_DIR+'manifest.json',JSON.stringify(manifest,null,2)],
+    [ASSET_DIR+'register.js',register], [ASSET_DIR+'offline.html',offline],
+    ['sw.js',worker], ['HUONG_DAN.txt',readme]
+  ];
+}
+
+// ZIP store format. Keep the tool entirely local without a CDN or npm.
+const crcTable = Uint32Array.from({length:256}, (_, index) => {
+  let value = index;
+  for (let bit = 0; bit < 8; bit++) value = (value >>> 1) ^ ((value & 1) ? 0xedb88320 : 0);
+  return value;
+});
+function crc32(bytes) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) crc = (crc >>> 8) ^ crcTable[(crc ^ byte) & 255];
+  return (crc ^ 0xffffffff) >>> 0;
+}
+function makeZip(files) {
+  const local = [], directory = [];
+  let offset = 0, directorySize = 0;
+  for (const [path, content] of files) {
+    const name = encoder.encode(path);
+    const bytes = typeof content === 'string' ? encoder.encode(content) : content;
+    const crc = crc32(bytes);
+    const header = new Uint8Array(30 + name.length);
+    const head = new DataView(header.buffer);
+    head.setUint32(0,0x04034b50,true);
+    head.setUint16(4,20,true);
+    head.setUint16(6,0x0800,true);
+    head.setUint16(12,33,true);
+    head.setUint32(14,crc,true);
+    head.setUint32(18,bytes.length,true);
+    head.setUint32(22,bytes.length,true);
+    head.setUint16(26,name.length,true);
+    header.set(name,30);
+    const entry = new Uint8Array(46 + name.length);
+    const meta = new DataView(entry.buffer);
+    meta.setUint32(0,0x02014b50,true);
+    meta.setUint16(4,20,true);
+    meta.setUint16(6,20,true);
+    meta.setUint16(8,0x0800,true);
+    meta.setUint16(14,33,true);
+    meta.setUint32(16,crc,true);
+    meta.setUint32(20,bytes.length,true);
+    meta.setUint32(24,bytes.length,true);
+    meta.setUint16(28,name.length,true);
+    meta.setUint32(42,offset,true);
+    entry.set(name,46);
+    local.push(header,bytes);
+    directory.push(entry);
+    offset += header.length + bytes.length;
+    directorySize += entry.length;
+  }
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true);
+  end.setUint16(8,files.length,true);
+  end.setUint16(10,files.length,true);
+  end.setUint32(12,directorySize,true);
+  end.setUint32(16,offset,true);
+  return new Blob([...local,...directory,end.buffer], {type:'application/zip'});
+}
+
+async function generate(source, logo, name) {
+  const app = prepareApp(source, name);
+  const icons = await buildIcons(logo);
+  const zip = makeZip([...packageFiles(app),...icons]);
+  const slug = app.appName.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[đĐ]/g,'d').replace(/[^a-z0-9]+/gi,'-').replace(/^-+|-+$/g,'').toLowerCase();
+  const url = URL.createObjectURL(zip);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = (slug || 'ideco-app') + '-pwa.zip';
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+  return link.download;
+}
+
+async function runBuild(task) {
+  const status = byId('status');
+  byId('build').disabled = byId('sample').disabled = true;
+  status.className = '';
+  status.textContent = 'Đang chuẩn bị bộ cài…';
+  try {
+    status.textContent = 'Đã tạo ' + await task() + '. Giải nén và tải toàn bộ lên GitHub Pages.';
+  } catch (error) {
+    status.className = 'error';
+    status.textContent = error.message || 'Không tạo được bộ cài.';
+  } finally {
+    byId('build').disabled = byId('sample').disabled = false;
+  }
+}
+byId('builder').addEventListener('submit', event => {
+  event.preventDefault();
+  runBuild(async () => {
+    const source = byId('source').files[0];
+    const logo = byId('logo').files[0];
+    if (!source || !logo) throw new Error('Anh hãy chọn cả file HTML chính và ảnh logo.');
+    if (!/\.html?$/i.test(source.name)) throw new Error('File nội dung cần có đuôi .html hoặc .htm.');
+    if (source.size > MAX_SOURCE_BYTES || logo.size > MAX_SOURCE_BYTES) throw new Error('Mỗi file cần nhỏ hơn 25 MB.');
+    return generate(await source.text(), logo, byId('name').value);
+  });
+});
+byId('sample').addEventListener('click', () => runBuild(() => {
+  const demo = '<!doctype html><html lang="vi"><meta charset="utf-8"><title>IDECO Mẫu</title><style>body{margin:32px;background:#fff5f5;color:#292c38;font:18px system-ui}h1{color:#a9233e}</style><h1>IDECO Mẫu</h1><p>Đây là file nội dung chính của một ứng dụng PWA.</p></html>';
+  const logo = new Blob(['<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><rect width="512" height="512" fill="#a9233e"/><text x="256" y="275" text-anchor="middle" font-family="sans-serif" font-size="88" font-weight="bold" fill="white">IDECO</text></svg>'], {type:'image/svg+xml'});
+  return generate(demo, logo, '');
+}));
+</script>
+</body>
+</html>
