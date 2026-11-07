@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>IDECO · Bộ tạo app PWA</title>
+<title>IDECO · Bộ tạo app PWA V2</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#f5f3f0;color:#272b36;font:16px/1.55 system-ui,sans-serif}main{max-width:790px;margin:auto;padding:28px 16px 56px}header{background:#292c38;color:#fff;padding:30px;border-radius:20px}header small{letter-spacing:.18em;color:#efbd9d}h1{margin:8px 0;font-size:clamp(26px,5vw,38px);line-height:1.15}header p{margin:12px 0 0;color:#e0dfe4}section{padding:24px;margin-top:16px;background:#fff;border:1px solid #e8e1dc;border-radius:16px}h2{font-size:19px;margin:0 0 12px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}label{display:block;font-weight:650;margin-bottom:5px}input{font:inherit;width:100%;max-width:100%;padding:11px;border:1px solid #dcd6d2;border-radius:9px;background:#fcfbfa}input[type=file]{font-size:13px}input::file-selector-button{padding:6px;margin-right:7px}small,.hint{font-size:13px;color:#655e66}.hint{margin:6px 0 0}.name-row{margin-top:16px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}button{min-height:44px;border:1px solid #dcd6d2;border-radius:10px;background:#fff;color:#302b35;font:inherit;font-weight:650;padding:9px 15px;cursor:pointer}button.primary{color:white;background:#a9233e;border-color:#a9233e}button:disabled{opacity:.6;cursor:wait}button:focus-visible,input:focus-visible{outline:3px solid #a9233e;outline-offset:3px}#status{min-height:24px;margin:14px 0 0;color:#27634c;overflow-wrap:anywhere}#status.error{color:#a9233e}ol{padding-left:23px;margin:0}li+li{margin-top:7px}@media(max-width:540px){.fields{grid-template-columns:1fr}header,section{padding:19px}}
 </style>
 </head>
 <body>
 <main>
-<header><small>IDECO · CÔNG CỤ NỘI BỘ</small><h1>Bộ tạo app PWA</h1><p>Chọn HTML và logo để đóng gói ứng dụng cài lên màn hình Android và iPhone.</p></header>
+<header><small>IDECO · CÔNG CỤ NỘI BỘ</small><h1>Bộ tạo app PWA V2</h1><p>Chọn HTML và logo để đóng gói ứng dụng cài lên màn hình Android và iPhone.</p></header>
 <section aria-labelledby="files-title">
 <h2 id="files-title">Tệp ứng dụng</h2>
 <form id="builder">
@@ -26,20 +26,29 @@
 <section><h2>Đưa app lên điện thoại</h2><ol>
 <li>Giải nén ZIP. Tải toàn bộ nội dung lên cùng một thư mục GitHub Pages có HTTPS.</li>
 <li>Nếu HTML dùng CSS, JavaScript hoặc ảnh rời, tải thêm các tệp đó và giữ đúng đường dẫn của app gốc.</li>
-<li>Mở địa chỉ website trên điện thoại. Android dùng menu Chrome để cài. iPhone dùng Safari → Chia sẻ → Thêm vào màn hình chính.</li>
+<li>Sau khi GitHub Pages cập nhật, mở <code>cai-dat.html</code> trên website để kiểm tra biểu tượng và cài lên màn hình chính. Bấm tải ZIP chỉ tạo bộ cài.</li>
 </ol><p class="hint">Mỗi app nên có địa chỉ riêng. Bộ tạo xử lý tệp trên máy của anh. Nếu nguồn đã là PWA, dùng bản HTML gốc trước khi gắn cấu hình PWA để tránh hai bộ cài cùng đăng ký.</p></section>
 </main>
 <script>
 'use strict';
 const encoder = new TextEncoder();
-const ASSET_DIR = 'ideco-pwa/';
+const PWA_FILES = {
+  manifest: 'manifest.json', setup: 'cai-dat.html', script: 'ideco-pwa.js',
+  worker: 'sw.js', offline: 'ideco-offline.html'
+};
+const ICONS = [
+  ['ideco-icon-192.png', 192, false],
+  ['ideco-icon-512.png', 512, false],
+  ['ideco-icon-maskable-512.png', 512, true],
+  ['ideco-apple-touch-icon.png', 180, false]
+];
 const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
 const byId = id => document.getElementById(id);
 const escapeHtml = text => text.replace(/[&<>"']/g, char => ({
   '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
 })[char]);
 
-function prepareApp(source, requestedName) {
+function prepareApp(source, requestedName, version) {
   const doc = new DOMParser().parseFromString(source, 'text/html');
   if (doc.querySelector('link[rel~="manifest" i]')) {
     throw new Error('File đã có manifest PWA. Hãy chọn file HTML gốc trước khi gắn PWA.');
@@ -53,18 +62,21 @@ function prepareApp(source, requestedName) {
     doc.head.insertAdjacentHTML('afterbegin', '<meta name="viewport" content="width=device-width, initial-scale=1">');
   }
   doc.head.querySelectorAll('link[rel~="apple-touch-icon" i], link[rel~="apple-touch-icon-precomposed" i], link[rel~="icon" i], meta[name="apple-mobile-web-app-title" i], meta[name="apple-mobile-web-app-capable" i], meta[name="mobile-web-app-capable" i]').forEach(node => node.remove());
-  const title = escapeHtml(appName);
-  doc.head.insertAdjacentHTML('beforeend', `
-    <link rel="manifest" href="./${ASSET_DIR}manifest.json">
-    <link rel="icon" href="./${ASSET_DIR}icon-192.png" type="image/png">
-    <link rel="apple-touch-icon" sizes="180x180" href="./${ASSET_DIR}apple-touch-icon.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="${title}">
-    <script src="./${ASSET_DIR}register.js" defer><\/script>
-  `);
+  doc.head.insertAdjacentHTML('beforeend', pwaHead(appName, version));
   const doctype = doc.doctype ? new XMLSerializer().serializeToString(doc.doctype) + '\n' : '';
   return { appName, html: doctype + doc.documentElement.outerHTML };
+}
+
+function pwaHead(appName, version) {
+  return `
+    <link rel="manifest" href="./${PWA_FILES.manifest}?v=${version}">
+    <link rel="icon" href="./${ICONS[0][0]}?v=${version}" type="image/png">
+    <link rel="apple-touch-icon" sizes="180x180" href="./${ICONS[3][0]}?v=${version}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="${escapeHtml(appName)}">
+    <script src="./${PWA_FILES.script}?v=${version}" defer><\/script>
+  `;
 }
 
 async function renderIcon(image, size, maskable) {
@@ -73,7 +85,7 @@ async function renderIcon(image, size, maskable) {
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, size, size);
-  const box = size * (maskable ? 0.68 : 1);
+  const box = size * (maskable ? 0.56 : 1);
   const scale = box / Math.max(image.naturalWidth, image.naturalHeight);
   const width = image.naturalWidth * scale;
   const height = image.naturalHeight * scale;
@@ -90,36 +102,28 @@ async function buildIcons(logo) {
     const image = new Image();
     image.src = url;
     await image.decode();
-    const variants = [
-      ['icon-192.png',192,false], ['icon-512.png',512,false],
-      ['icon-maskable-512.png',512,true], ['apple-touch-icon.png',180,false]
-    ];
-    return await Promise.all(variants.map(async ([name,size,maskable]) =>
-      [ASSET_DIR + name, await renderIcon(image,size,maskable)]));
+    return await Promise.all(ICONS.map(async ([name,size,maskable]) =>
+      [name, await renderIcon(image,size,maskable)]));
   } finally {
     URL.revokeObjectURL(url);
   }
 }
 
-function packageFiles(app) {
+function packageFiles(app, version) {
   const manifest = {
-    name:app.appName, short_name:app.appName,
-    lang:'vi', start_url:'../', scope:'../', display:'standalone',
-    background_color:'#ffffff', theme_color:'#a9233e',
-    icons:[
-      {src:'icon-192.png', sizes:'192x192', type:'image/png', purpose:'any'},
-      {src:'icon-512.png', sizes:'512x512', type:'image/png', purpose:'any'},
-      {src:'icon-maskable-512.png', sizes:'512x512', type:'image/png', purpose:'maskable'}
-    ]
+    name: app.appName, short_name: app.appName,
+    lang: 'vi', start_url: './', scope: './', display: 'standalone',
+    background_color: '#ffffff', theme_color: '#a9233e',
+    icons: ICONS.slice(0, 3).map(([name, size, maskable]) => ({
+      src: './' + name + '?v=' + version,
+      sizes: size + 'x' + size, type: 'image/png',
+      purpose: maskable ? 'maskable' : 'any'
+    }))
   };
-  const register = `if ('serviceWorker' in navigator && window.isSecureContext) {
-  const worker = new URL('../sw.js', document.currentScript.src);
-  navigator.serviceWorker.register(worker).catch(error => console.warn('PWA:', error.message));
-}
-`;
+  const register = `(${initializeInstallation.toString()})();\n`;
   const worker = `const scope = self.registration.scope;
 const cacheName = 'ideco-template-pwa:' + scope;
-const offlineUrl = new URL('ideco-pwa/offline.html', scope).href;
+const offlineUrl = new URL('${PWA_FILES.offline}', scope).href;
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const cache = await caches.open(cacheName);
@@ -147,18 +151,99 @@ self.addEventListener('fetch', event => {
 
 1. Giải nén và tải toàn bộ file, thư mục lên cùng vị trí GitHub Pages (HTTPS).
 2. Nếu HTML có CSS, JavaScript hoặc ảnh rời, đưa lên thêm đúng cấu trúc gốc.
-3. Android: Chrome > menu ⋮ > Cài đặt ứng dụng hoặc Thêm vào màn hình chính.
-4. iPhone: Safari > Chia sẻ > Thêm vào màn hình chính > Thêm.
-5. Nếu cập nhật app, triển khai vào đúng địa chỉ cũ. Khi biểu tượng cũ còn hiện,
-   thử mở lại trang và cài lại nếu cần. Kiểm tra dữ liệu chỉ lưu trên máy trước khi gỡ.
-Mỗi app dùng thư mục hoặc repo riêng. Nội dung chính được mở trực tiếp từ index.html.
-Bộ cài hiển thị màn hình báo mất mạng. Khả năng sử dụng offline phụ thuộc app gốc.
+3. Mở trang cai-dat.html từ URL HTTPS của app để kiểm tra manifest và logo.
+4. Android: bấm Cài ứng dụng nếu nút hiện. Hoặc mở menu ⋮ của Chrome để cài.
+5. iPhone: bấm Mở ứng dụng, rồi Safari > Chia sẻ > Thêm vào màn hình chính > Thêm.
+Nếu biểu tượng cũ vẫn hiện, kiểm tra dữ liệu lưu trên máy trước khi gỡ rồi cài lại.
+Mỗi app dùng một URL thư mục riêng. Biểu tượng mở nội dung chính từ index.html.
 `;
+  const setup = `<!doctype html><html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cài ${escapeHtml(app.appName)}</title>${pwaHead(app.appName, version)}
+<style>body{margin:0;padding:24px;background:#f5f3f0;font:16px/1.55 system-ui;color:#272b36}main{max-width:540px;margin:auto;background:white;padding:24px;border-radius:18px}img{border-radius:16px}button,a{font:inherit}button{padding:12px 16px;border:0;border-radius:10px;background:#a9233e;color:white}#install-status{white-space:pre-line;overflow-wrap:anywhere}</style>
+</head><body><main>
+<img src="./${ICONS[3][0]}?v=${version}" alt="Biểu tượng ứng dụng" width="80" height="80">
+<h1>Cài ${escapeHtml(app.appName)}</h1>
+<p id="install-status" role="status">Đang kiểm tra bộ cài…</p>
+<button id="install-app" type="button" hidden>Cài ứng dụng</button>
+<p><b>Android</b> · Dùng nút cài hoặc menu ⋮ trong Chrome.</p>
+<p><b>iPhone</b> · Bấm Mở ứng dụng bên dưới. Sau đó chọn Chia sẻ → Thêm vào màn hình chính trong Safari. Bật Mở dưới dạng ứng dụng nếu được hỏi.</p>
+<p><a href="./">Mở ứng dụng</a></p>
+</main>\x3c/body></html>`;
   return [
-    ['index.html',app.html], [ASSET_DIR+'manifest.json',JSON.stringify(manifest,null,2)],
-    [ASSET_DIR+'register.js',register], [ASSET_DIR+'offline.html',offline],
-    ['sw.js',worker], ['HUONG_DAN.txt',readme]
+    ['index.html', app.html], [PWA_FILES.manifest, JSON.stringify(manifest, null, 2)],
+    [PWA_FILES.script, register], [PWA_FILES.offline, offline],
+    [PWA_FILES.worker, worker], [PWA_FILES.setup, setup], ['HUONG_DAN.txt', readme]
   ];
+}
+
+function initializeInstallation() {
+  const status = document.getElementById('install-status');
+  const button = document.getElementById('install-app');
+  if (status && button) {
+    let installPrompt;
+    window.addEventListener('beforeinstallprompt', event => {
+      event.preventDefault();
+      installPrompt = event;
+      button.hidden = false;
+    });
+    button.addEventListener('click', async () => {
+      const prompt = installPrompt;
+      if (!prompt) return;
+      installPrompt = null;
+      button.hidden = true;
+      try {
+        await prompt.prompt();
+      } catch {
+        status.textContent = 'Hãy dùng mục cài ứng dụng trong menu Chrome.';
+      }
+    });
+    window.addEventListener('appinstalled', () => {
+      button.hidden = true;
+      status.textContent = 'Đã thêm ứng dụng lên màn hình chính.';
+    });
+  }
+
+  if (!window.isSecureContext || location.protocol === 'file:') {
+    if (status) status.textContent = 'Hãy tải toàn bộ bộ cài lên website HTTPS rồi mở lại trang này từ website.';
+    return;
+  }
+
+  const worker = 'serviceWorker' in navigator
+    ? navigator.serviceWorker.register(new URL('./sw.js', document.currentScript.src), {updateViaCache:'none'})
+    : null;
+  if (worker) worker.catch(error => console.warn('PWA:', error.message));
+  if (!status) return;
+
+  (async () => {
+    const manifestUrl = document.querySelector('link[rel="manifest"]').href;
+    const response = await fetch(manifestUrl, {cache:'no-cache'});
+    if (!response.ok) throw new Error('manifest.json trả về HTTP ' + response.status);
+    const manifest = await response.json().catch(() => {
+      throw new Error('manifest.json không phải JSON hợp lệ.');
+    });
+    const icons = manifest.icons || [];
+    for (const size of [192, 512]) {
+      if (!icons.some(icon => icon.sizes === size + 'x' + size && icon.purpose === 'any')) {
+        throw new Error('Manifest thiếu logo ' + size + ' × ' + size + '.');
+      }
+    }
+    const imageUrls = icons.map(icon => [new URL(icon.src, manifestUrl).href, Number(icon.sizes.split('x')[0])]);
+    imageUrls.push([document.querySelector('link[rel="apple-touch-icon"]').href, 180]);
+    await Promise.all(imageUrls.map(async ([url, size]) => {
+      const image = new Image();
+      image.src = url;
+      const filename = new URL(url).pathname.split('/').pop();
+      try { await image.decode(); } catch { throw new Error('Không tải được logo ' + filename); }
+      if (image.naturalWidth !== size || image.naturalHeight !== size) {
+        throw new Error('Logo sai kích thước: ' + filename);
+      }
+    }));
+    if (worker) await worker.catch(error => { throw new Error('Không đăng ký được sw.js: ' + error.message); });
+    status.textContent = 'Manifest và các ảnh logo đã tải đúng. Anh có thể cài bằng nút hoặc menu trình duyệt.';
+  })().catch(error => {
+    status.textContent = 'Kiểm tra bộ cài: ' + error.message + ' Kiểm tra đã tải đủ các tệp cùng cấp trên website.';
+  });
 }
 
 // ZIP store format. Keep the tool entirely local without a CDN or npm.
@@ -218,9 +303,10 @@ function makeZip(files) {
 }
 
 async function generate(source, logo, name) {
-  const app = prepareApp(source, name);
+  const version = crc32(new Uint8Array(await logo.arrayBuffer())).toString(16);
+  const app = prepareApp(source, name, version);
   const icons = await buildIcons(logo);
-  const zip = makeZip([...packageFiles(app),...icons]);
+  const zip = makeZip([...packageFiles(app, version), ...icons]);
   const slug = app.appName.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
     .replace(/[đĐ]/g,'d').replace(/[^a-z0-9]+/gi,'-').replace(/^-+|-+$/g,'').toLowerCase();
   const url = URL.createObjectURL(zip);
@@ -240,7 +326,7 @@ async function runBuild(task) {
   status.className = '';
   status.textContent = 'Đang chuẩn bị bộ cài…';
   try {
-    status.textContent = 'Đã tạo ' + await task() + '. Giải nén và tải toàn bộ lên GitHub Pages.';
+    status.textContent = 'Đã tạo ' + await task() + '. Tải toàn bộ lên GitHub Pages, sau đó mở cai-dat.html trên website.';
   } catch (error) {
     status.className = 'error';
     status.textContent = error.message || 'Không tạo được bộ cài.';
