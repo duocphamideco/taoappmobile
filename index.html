@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>IDECO · Bộ tạo app PWA V2</title>
+<title>IDECO · Bộ tạo app PWA V3</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#f5f3f0;color:#272b36;font:16px/1.55 system-ui,sans-serif}main{max-width:790px;margin:auto;padding:28px 16px 56px}header{background:#292c38;color:#fff;padding:30px;border-radius:20px}header small{letter-spacing:.18em;color:#efbd9d}h1{margin:8px 0;font-size:clamp(26px,5vw,38px);line-height:1.15}header p{margin:12px 0 0;color:#e0dfe4}section{padding:24px;margin-top:16px;background:#fff;border:1px solid #e8e1dc;border-radius:16px}h2{font-size:19px;margin:0 0 12px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}label{display:block;font-weight:650;margin-bottom:5px}input{font:inherit;width:100%;max-width:100%;padding:11px;border:1px solid #dcd6d2;border-radius:9px;background:#fcfbfa}input[type=file]{font-size:13px}input::file-selector-button{padding:6px;margin-right:7px}small,.hint{font-size:13px;color:#655e66}.hint{margin:6px 0 0}.name-row{margin-top:16px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}button{min-height:44px;border:1px solid #dcd6d2;border-radius:10px;background:#fff;color:#302b35;font:inherit;font-weight:650;padding:9px 15px;cursor:pointer}button.primary{color:white;background:#a9233e;border-color:#a9233e}button:disabled{opacity:.6;cursor:wait}button:focus-visible,input:focus-visible{outline:3px solid #a9233e;outline-offset:3px}#status{min-height:24px;margin:14px 0 0;color:#27634c;overflow-wrap:anywhere}#status.error{color:#a9233e}ol{padding-left:23px;margin:0}li+li{margin-top:7px}@media(max-width:540px){.fields{grid-template-columns:1fr}header,section{padding:19px}}
 </style>
 </head>
 <body>
 <main>
-<header><small>IDECO · CÔNG CỤ NỘI BỘ</small><h1>Bộ tạo app PWA V2</h1><p>Chọn HTML và logo để đóng gói ứng dụng cài lên màn hình Android và iPhone.</p></header>
+<header><small>IDECO · CÔNG CỤ NỘI BỘ</small><h1>Bộ tạo app PWA V3</h1><p>Chọn HTML và logo để đóng gói ứng dụng cài lên màn hình Android và iPhone.</p></header>
 <section aria-labelledby="files-title">
 <h2 id="files-title">Tệp ứng dụng</h2>
 <form id="builder">
@@ -26,7 +26,7 @@
 <section><h2>Đưa app lên điện thoại</h2><ol>
 <li>Giải nén ZIP. Tải toàn bộ nội dung lên cùng một thư mục GitHub Pages có HTTPS.</li>
 <li>Nếu HTML dùng CSS, JavaScript hoặc ảnh rời, tải thêm các tệp đó và giữ đúng đường dẫn của app gốc.</li>
-<li>Sau khi GitHub Pages cập nhật, mở <code>cai-dat.html</code> trên website để kiểm tra biểu tượng và cài lên màn hình chính. Bấm tải ZIP chỉ tạo bộ cài.</li>
+<li>Sau khi GitHub Pages cập nhật, mở <code>cai-dat.html</code> trên website. Bấm <b>Mở ứng dụng</b> để thử trang chính rồi thêm biểu tượng từ trình duyệt.</li>
 </ol><p class="hint">Mỗi app nên có địa chỉ riêng. Bộ tạo xử lý tệp trên máy của anh. Nếu nguồn đã là PWA, dùng bản HTML gốc trước khi gắn cấu hình PWA để tránh hai bộ cài cùng đăng ký.</p></section>
 </main>
 <script>
@@ -112,7 +112,7 @@ async function buildIcons(logo) {
 function packageFiles(app, version) {
   const manifest = {
     name: app.appName, short_name: app.appName,
-    lang: 'vi', start_url: './', scope: './', display: 'standalone',
+    lang: 'vi', start_url: './index.html', scope: './', display: 'standalone',
     background_color: '#ffffff', theme_color: '#a9233e',
     icons: ICONS.slice(0, 3).map(([name, size, maskable]) => ({
       src: './' + name + '?v=' + version,
@@ -152,9 +152,11 @@ self.addEventListener('fetch', event => {
 1. Giải nén và tải toàn bộ file, thư mục lên cùng vị trí GitHub Pages (HTTPS).
 2. Nếu HTML có CSS, JavaScript hoặc ảnh rời, đưa lên thêm đúng cấu trúc gốc.
 3. Mở trang cai-dat.html từ URL HTTPS của app để kiểm tra manifest và logo.
-4. Android: bấm Cài ứng dụng nếu nút hiện. Hoặc mở menu ⋮ của Chrome để cài.
+4. Bấm Mở ứng dụng. Chỉ cài khi trang nội dung chính đã mở được.
+   Android dùng menu ⋮ của Chrome > Cài đặt ứng dụng hoặc Thêm vào màn hình chính.
 5. iPhone: bấm Mở ứng dụng, rồi Safari > Chia sẻ > Thêm vào màn hình chính > Thêm.
 Nếu biểu tượng cũ vẫn hiện, kiểm tra dữ liệu lưu trên máy trước khi gỡ rồi cài lại.
+Mở từ địa chỉ website HTTPS. Nếu biểu tượng cũ lỗi, dùng website để thử lại trước khi cài mới.
 Mỗi app dùng một URL thư mục riêng. Biểu tượng mở nội dung chính từ index.html.
 `;
   const setup = `<!doctype html><html lang="vi"><head><meta charset="utf-8">
@@ -166,9 +168,9 @@ Mỗi app dùng một URL thư mục riêng. Biểu tượng mở nội dung ch�
 <h1>Cài ${escapeHtml(app.appName)}</h1>
 <p id="install-status" role="status">Đang kiểm tra bộ cài…</p>
 <button id="install-app" type="button" hidden>Cài ứng dụng</button>
-<p><b>Android</b> · Dùng nút cài hoặc menu ⋮ trong Chrome.</p>
+<p><b>Android</b> · Bấm Mở ứng dụng để thử trước. Khi nội dung đã chạy, dùng menu ⋮ của Chrome để cài.</p>
 <p><b>iPhone</b> · Bấm Mở ứng dụng bên dưới. Sau đó chọn Chia sẻ → Thêm vào màn hình chính trong Safari. Bật Mở dưới dạng ứng dụng nếu được hỏi.</p>
-<p><a href="./">Mở ứng dụng</a></p>
+<p><a id="open-app" href="./index.html">Mở ứng dụng</a></p>
 </main>\x3c/body></html>`;
   return [
     ['index.html', app.html], [PWA_FILES.manifest, JSON.stringify(manifest, null, 2)],
@@ -180,12 +182,13 @@ Mỗi app dùng một URL thư mục riêng. Biểu tượng mở nội dung ch�
 function initializeInstallation() {
   const status = document.getElementById('install-status');
   const button = document.getElementById('install-app');
+  let launchVerified = false;
+  let installPrompt;
   if (status && button) {
-    let installPrompt;
     window.addEventListener('beforeinstallprompt', event => {
       event.preventDefault();
       installPrompt = event;
-      button.hidden = false;
+      button.hidden = !launchVerified;
     });
     button.addEventListener('click', async () => {
       const prompt = installPrompt;
@@ -222,6 +225,24 @@ function initializeInstallation() {
     const manifest = await response.json().catch(() => {
       throw new Error('manifest.json không phải JSON hợp lệ.');
     });
+    const startUrl = new URL(manifest.start_url || './index.html', manifestUrl);
+    const scopeUrl = new URL(manifest.scope || './', manifestUrl);
+    if (startUrl.origin !== location.origin || scopeUrl.origin !== location.origin ||
+        !startUrl.pathname.startsWith(scopeUrl.pathname)) {
+      throw new Error('Đường dẫn mở app nằm ngoài website hoặc phạm vi cài đặt.');
+    }
+    const launch = await fetch(startUrl, {cache:'no-cache'});
+    if (!launch.ok) throw new Error('Không mở được index.html, HTTP ' + launch.status);
+    const finalUrl = new URL(launch.url || startUrl.href);
+    if (finalUrl.origin !== startUrl.origin || finalUrl.pathname !== startUrl.pathname) {
+      throw new Error('index.html chuyển sang địa chỉ khác. Kiểm tra lại GitHub Pages.');
+    }
+    const contentType = launch.headers.get('content-type')?.toLowerCase() || '';
+    if (!contentType.includes('text/html')) {
+      throw new Error('index.html chưa được website phục vụ dưới dạng HTML.');
+    }
+    const openLink = document.getElementById('open-app');
+    if (openLink) openLink.href = startUrl.href;
     const icons = manifest.icons || [];
     for (const size of [192, 512]) {
       if (!icons.some(icon => icon.sizes === size + 'x' + size && icon.purpose === 'any')) {
@@ -240,7 +261,9 @@ function initializeInstallation() {
       }
     }));
     if (worker) await worker.catch(error => { throw new Error('Không đăng ký được sw.js: ' + error.message); });
-    status.textContent = 'Manifest và các ảnh logo đã tải đúng. Anh có thể cài bằng nút hoặc menu trình duyệt.';
+    launchVerified = true;
+    if (button) button.hidden = !installPrompt;
+    status.textContent = 'Đã kiểm tra index.html, manifest và logo. Bấm Mở ứng dụng để thử trước, sau đó cài từ trang ứng dụng.';
   })().catch(error => {
     status.textContent = 'Kiểm tra bộ cài: ' + error.message + ' Kiểm tra đã tải đủ các tệp cùng cấp trên website.';
   });
@@ -303,7 +326,9 @@ function makeZip(files) {
 }
 
 async function generate(source, logo, name) {
-  const version = crc32(new Uint8Array(await logo.arrayBuffer())).toString(16);
+  const logoVersion = crc32(new Uint8Array(await logo.arrayBuffer())).toString(16);
+  const contentVersion = crc32(encoder.encode(name + '\n' + source)).toString(16);
+  const version = '3-' + logoVersion + '-' + contentVersion;
   const app = prepareApp(source, name, version);
   const icons = await buildIcons(logo);
   const zip = makeZip([...packageFiles(app, version), ...icons]);
